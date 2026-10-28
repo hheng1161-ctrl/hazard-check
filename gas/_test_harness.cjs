@@ -30,15 +30,16 @@ const sheetObj = {
   },
   setFrozenRows: () => {},
   appendRow: (r) => rows.push(r),
+  deleteRows: (start, count) => { rows.splice(start - 1, count); },
   getParent: () => ({ getUrl: () => 'https://docs.google.com/spreadsheets/d/FAKE/edit' }),
   insertSheet: () => sheetObj,
 };
 
-let storedId = null;
+const props = {};
 global.PropertiesService = {
   getScriptProperties: () => ({
-    getProperty: () => storedId,
-    setProperty: (k, v) => { storedId = v; },
+    getProperty: (k) => (k in props ? props[k] : null),
+    setProperty: (k, v) => { props[k] = v; },
   }),
 };
 
@@ -182,6 +183,37 @@ check('dueDate 正規化為 yyyy-MM-dd', lastItem,
 check('Date 物件也能正確排序（10/27 應排最後）', lastItem,
   (x) => x.site === '舊工地', '舊工地');
 check('stats.total 含這筆', r, (x) => x.stats.total === 5, 'total=5');
+
+console.log('\n=== 6. 一次性資料重建（reset）===');
+r = get({ action: 'reset' });
+check('沒帶 confirm → 被拒絕', r, (x) => x.error === 'VALIDATION', 'VALIDATION');
+
+r = get({ action: 'reset', confirm: 'RESET' });
+check('帶 confirm 執行成功並寫入 4 筆', r, (x) => x.ok === true && x.seeded === 4, '{seeded:4}');
+check('回報移除了原有資料列', r, (x) => x.removed >= 1, '≥1');
+
+r = get({ action: 'list' });
+check('重建後剛好 4 筆', r, (x) => x.items.length === 4, '4 筆');
+check('工地名稱全部是「示範工地」開頭', r,
+  (x) => x.items.every((i) => i.site.indexOf('示範工地') === 0), '示範工地');
+check('沒有真實公司名稱', r,
+  (x) => x.items.every((i) => !/中龍|核四|彰濱|亞通/.test(i.site)), '無');
+check('統計 total=4', r, (x) => x.stats.total === 4, '4');
+check('統計 open=4', r, (x) => x.stats.open === 4, '4');
+check('統計 highOpen=1', r, (x) => x.stats.highOpen === 1, '1');
+check('時間由新到舊', r, (x) => x.items[0].timestamp > x.items[3].timestamp, '遞減');
+check('時間格式正確', r,
+  (x) => /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(x.items[0].timestamp), '格式');
+check('期限為 YYYY-MM-DD 或空白', r,
+  (x) => x.items.every((i) => i.dueDate === '' || /^\d{4}-\d{2}-\d{2}$/.test(i.dueDate)), '格式');
+
+r = get({ action: 'reset', confirm: 'RESET' });
+check('第二次執行 → 被拒絕（一次性）', r,
+  (x) => x.error === 'VALIDATION' && /執行過/.test(x.message), '已執行過');
+
+r = get({ action: 'info' });
+check('info 回傳版本號', r,
+  (x) => typeof x.version === 'string' && x.version.length > 0, '有 version');
 
 console.log('\n' + '='.repeat(50));
 console.log(`通過 ${pass} / 共 ${pass + fail}    失敗 ${fail}`);

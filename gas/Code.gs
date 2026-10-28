@@ -12,8 +12,9 @@
  *   4. 第一次被呼叫時會自動建立 Google 試算表與表頭
  *
  * 端點：
- *   GET  ?action=info            健康檢查
+ *   GET  ?action=info            健康檢查（含版本號）
  *   GET  ?action=list&limit=20   讀取最近記錄 + 統計
+ *   GET  ?action=reset&confirm=RESET   一次性維護：清空資料列並寫入虛構示範資料
  *   POST <body 為 JSON>           新增一筆巡檢記錄
  */
 
@@ -41,6 +42,25 @@ const DEFAULT_STATUS = '待改善';
 const MAX_LIMIT = 100;
 const DEFAULT_LIMIT = 20;
 
+// 版本號（改版時遞增，用來確認線上部署的是哪一版）
+const CODE_VERSION = '2（含一次性資料重建）';
+
+// 一次性維護指令：清空資料列並寫入虛構示範資料
+const RESET_CONFIRM = 'RESET';
+const RESET_FLAG = 'RESET_DONE_AT';
+
+// 示範資料（全部虛構，工地名稱一律用代稱，不對應任何真實公司或專案）
+const DEMO_ROWS = [
+  { hoursAgo: 2,  site: '示範工地 A', area: 'A 棟 3F 東側', item: '墜落／開口防護',
+    severity: '高', desc: '電梯井開口未設護欄，僅有警示帶', dueInDays: 3,  inspector: '示範人員' },
+  { hoursAgo: 26, site: '示範工地 A', area: 'B 棟 1F 配電區', item: '感電與臨時用電',
+    severity: '中', desc: '臨時電箱未上鎖，電纜拖地', dueInDays: 5,  inspector: '示範人員' },
+  { hoursAgo: 50, site: '示範工地 B', area: '北側圍籬', item: '警示標示與圍籬',
+    severity: '低', desc: '部分警示帶脫落', dueInDays: null, inspector: '示範人員' },
+  { hoursAgo: 76, site: '示範工地 C', area: '材料堆置區', item: '物體飛落／堆置',
+    severity: '中', desc: '鋼材堆置超過 1.8 公尺且未固定', dueInDays: 7, inspector: '示範人員' }
+];
+
 // ─────────────────────────── 進入點 ───────────────────────────
 
 function doGet(e) {
@@ -50,6 +70,7 @@ function doGet(e) {
 
     if (action === 'info') return info_();
     if (action === 'list') return list_(clampLimit_(p.limit));
+    if (action === 'reset') return reset_(p);
 
     throw new Error('VALIDATION: 未知的 action：' + action);
   });
@@ -255,12 +276,62 @@ function list_(limit) {
   return { ok: true, items: sorted.slice(0, limit), stats: stats_(rows) };
 }
 
+// ─────────────────────────── 一次性資料重建（維護用） ───────────────────────────
+
+/**
+ * 清空所有資料列並寫入虛構示範資料。
+ * 僅允許執行一次（用 Script Property 記錄），避免公開端點被誤用成「清空資料」。
+ */
+function reset_(params) {
+  if (String((params && params.confirm) || '') !== RESET_CONFIRM) {
+    throw new Error('VALIDATION: 需要 confirm=RESET 才能執行');
+  }
+
+  const props = PropertiesService.getScriptProperties();
+  const doneAt = props.getProperty(RESET_FLAG);
+  if (doneAt) {
+    throw new Error('VALIDATION: 已於 ' + doneAt + ' 執行過，為避免誤刪僅允許一次。'
+      + '若確需重跑，請至 Apps Script「專案設定 → 指令碼屬性」刪除 ' + RESET_FLAG);
+  }
+
+  const sheet = sheet_();
+  const last = sheet.getLastRow();
+  const removed = Math.max(0, last - 1);
+  if (removed > 0) sheet.deleteRows(2, removed);
+
+  const seeded = seedDemo_(sheet);
+  const at = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+  props.setProperty(RESET_FLAG, at);
+
+  return { ok: true, removed: removed, seeded: seeded, at: at };
+}
+
+function seedDemo_(sheet) {
+  const tz = Session.getScriptTimeZone();
+  const nowMs = Date.now();
+
+  const values = DEMO_ROWS.map(function (d) {
+    const ts = Utilities.formatDate(
+      new Date(nowMs - d.hoursAgo * 3600 * 1000), tz, 'yyyy-MM-dd HH:mm:ss'
+    );
+    const due = d.dueInDays === null || d.dueInDays === undefined ? ''
+      : Utilities.formatDate(new Date(nowMs + d.dueInDays * 24 * 3600 * 1000), tz, 'yyyy-MM-dd');
+    return [ts, d.site, d.area, d.item, d.severity, d.desc, due, d.inspector, DEFAULT_STATUS];
+  });
+
+  const range = sheet.getRange(2, 1, values.length, HEADERS.length);
+  range.setNumberFormat('@');
+  range.setValues(values);
+  return values.length;
+}
+
 function info_() {
   const sheet = sheet_();
   const ss = sheet.getParent();
   const total = Math.max(0, sheet.getLastRow() - 1);
   return {
     ok: true,
+    version: CODE_VERSION,
     name: SHEET_TITLE,
     sheet: SHEET_NAME,
     total: total,

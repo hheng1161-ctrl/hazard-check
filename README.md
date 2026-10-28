@@ -144,6 +144,22 @@ Settings → Pages → Source 選 **Deploy from a branch** → `main` / `/ (root
 
 ---
 
+## 維護指令：一次性資料重建
+
+後端提供一個**僅能執行一次**的維護端點，用於清空所有資料列並寫入虛構示範資料：
+
+```
+GET <GAS_URL>?action=reset&confirm=RESET
+```
+
+- 必須帶 `confirm=RESET`，否則拒絕
+- 執行成功後會在指令碼屬性寫下 `RESET_DONE_AT`，**第二次呼叫一律拒絕**，避免公開端點被誤用成「清空資料」
+- 若確需重跑：Apps Script → 專案設定 → 指令碼屬性 → 刪除 `RESET_DONE_AT`
+- 重建的 4 筆資料全部為虛構示範（工地名稱一律「示範工地 A／B／C」，巡檢人「示範人員」）
+
+> 為什麼要做成一次性而不是一般 API：這個頁面**沒有身分驗證**，
+> 一個可以任意清空資料的端點風險太高。一次性 + 需明確確認，是刻意設計的限制。
+
 ## 驗收狀態
 
 **線上網址**：<https://hheng1161-ctrl.github.io/hazard-check/>
