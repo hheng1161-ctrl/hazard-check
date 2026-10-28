@@ -41,13 +41,13 @@ Content-Type: text/plain;charset=utf-8
 
 ```json
 {
-  "site": "中龍鋼鐵二階建廠",
+  "site": "示範工地 A",
   "area": "B 棟 3F 東側",
   "item": "墜落／開口防護",
   "severity": "高",
   "desc": "3F 電梯井開口未設護欄，僅有警示帶",
   "dueDate": "2026-11-02",
-  "inspector": "楊恒煦"
+  "inspector": "示範人員"
 }
 ```
 
@@ -85,13 +85,13 @@ GET <GAS_URL>?action=list&limit=20
   "items": [
     {
       "timestamp": "2026-10-28 21:40:03",
-      "site": "中龍鋼鐵二階建廠",
+      "site": "示範工地 A",
       "area": "B 棟 3F 東側",
       "item": "墜落／開口防護",
       "severity": "高",
       "desc": "3F 電梯井開口未設護欄，僅有警示帶",
       "dueDate": "2026-11-02",
-      "inspector": "楊恒煦",
+      "inspector": "示範人員",
       "status": "待改善"
     }
   ],

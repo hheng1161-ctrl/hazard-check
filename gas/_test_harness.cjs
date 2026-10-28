@@ -102,18 +102,18 @@ const post = (obj) => call(doPost({ postData: { contents: JSON.stringify(obj) } 
 const get = (params) => call(doGet({ parameter: params }));
 
 const base = {
-  site: '中龍鋼鐵二階建廠', area: 'B 棟 3F 東側', item: '墜落／開口防護',
+  site: '示範工地 A', area: 'A 棟 3F 東側', item: '墜落／開口防護',
   severity: '高', desc: '3F 電梯井開口未設護欄，僅有警示帶',
-  dueDate: '2026-11-02', inspector: '楊恒煦',
+  dueDate: '2026-11-02', inspector: '示範人員',
 };
 
 console.log('\n=== 1. 新增記錄 ===');
 let r = post(base);
 check('合法資料 → ok=true 且 count=1', r, (x) => x.ok === true && x.count === 1, '{ok:true,count:1}');
 
-r = post({ ...base, site: '  核四龍門  ', desc: '  前後有空白  ' });
+r = post({ ...base, site: '  示範工地 B  ', desc: '  前後有空白  ' });
 check('第二次寫入 → count=2', r, (x) => x.count === 2, '{count:2}');
-check('欄位前後空白被去除', rows[2], (x) => x[1] === '核四龍門' && x[5] === '前後有空白', '去空白後的值');
+check('欄位前後空白被去除', rows[2], (x) => x[1] === '示範工地 B' && x[5] === '前後有空白', '去空白後的值');
 check('status 預設為「待改善」', rows[1], (x) => x[8] === '待改善', '待改善');
 
 console.log('\n=== 2. 驗證錯誤 ===');
@@ -144,7 +144,7 @@ check('info 分頁名為 Sheet1', r, (x) => x.sheet === 'Sheet1', 'Sheet1');
 
 r = get({ action: 'list' });
 check('list 回傳 items', r, (x) => Array.isArray(x.items) && x.items.length === 3, '3 筆');
-check('list 由新到舊', r, (x) => x.items[0].site !== '中龍鋼鐵二階建廠' || x.items.length < 2 || true, '（時間相同時不比序）');
+check('list 由新到舊', r, (x) => x.items[0].site !== '示範工地 A' || x.items.length < 2 || true, '（時間相同時不比序）');
 check('stats.total 正確', r, (x) => x.stats.total === 3, 'total=3');
 check('stats.open 正確（3 筆全待改善）', r, (x) => x.stats.open === 3, 'open=3');
 check('stats.highOpen 正確（3 筆全高）', r, (x) => x.stats.highOpen === 3, 'highOpen=3');
@@ -171,7 +171,7 @@ console.log('\n=== 5. 日期欄位防禦（模擬 Sheets 把字串轉成 Date �
 rows.push([
   new Date('2026-10-27T09:15:00+08:00'), '舊工地', 'A 區', '其他', '中',
   '模擬舊資料被 Sheets 轉成日期物件', new Date('2026-11-10T00:00:00+08:00'),
-  '楊恒煦', '待改善'
+  '示範人員', '待改善'
 ]);
 r = get({ action: 'list' });
 const lastItem = r.items[r.items.length - 1];
