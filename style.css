@@ -388,6 +388,18 @@ textarea[aria-invalid="true"] {
 
 .record-site { font-weight: 700; font-size: 15px; }
 
+/* 逾期標記：僅在「待改善」且期限已過時顯示（由 app.js 控制 hidden） */
+.record-overdue {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--high);
+  color: var(--high);
+  background: color-mix(in srgb, var(--high) 12%, transparent);
+  white-space: nowrap;
+}
+
 .record-time {
   margin-left: auto;
   font-size: 11px;

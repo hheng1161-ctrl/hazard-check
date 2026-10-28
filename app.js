@@ -163,6 +163,25 @@ function severityClass(sev) {
   return sev === '高' ? 'record--high' : sev === '中' ? 'record--mid' : 'record--low';
 }
 
+/** 今天的日期字串（YYYY-MM-DD，本地時區） */
+function todayString() {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/**
+ * 判斷是否逾期：只有「待改善」且「有填期限」且「期限早於今天」才算。
+ * 日期皆為 YYYY-MM-DD 字串，可直接用字串比較。
+ */
+function overdueInfo(row) {
+  if (!row.dueDate || row.status !== '待改善') return { overdue: false, days: 0 };
+  const today = todayString();
+  if (row.dueDate >= today) return { overdue: false, days: 0 };
+  const diff = new Date(`${today}T00:00:00`) - new Date(`${row.dueDate}T00:00:00`);
+  return { overdue: true, days: Math.round(diff / 86400000) };
+}
+
 function renderRecords(items) {
   el.records.textContent = '';
   el.listEmpty.hidden = items.length > 0;
@@ -170,6 +189,7 @@ function renderRecords(items) {
   items.forEach((row) => {
     const node = el.template.content.cloneNode(true);
     const li = node.querySelector('.record');
+    const due = overdueInfo(row);
 
     li.classList.add(severityClass(row.severity));
     node.querySelector('.record-sev').textContent = row.severity || '—';
@@ -178,10 +198,21 @@ function renderRecords(items) {
     node.querySelector('.record-area').textContent = row.area ? `位置：${row.area}` : '';
     node.querySelector('.record-item').textContent = row.item || '';
     node.querySelector('.record-desc').textContent = row.desc || '';
+
+    const badge = node.querySelector('.record-overdue');
+    if (due.overdue) {
+      badge.hidden = false;
+      badge.title = `改善期限 ${row.dueDate}，已逾期 ${due.days} 天`;
+    }
+
+    const dueText = row.dueDate
+      ? `改善期限：${row.dueDate}${due.overdue ? `（已逾期 ${due.days} 天）` : ''}`
+      : '改善期限：未填';
+
     node.querySelector('.record-foot').textContent = [
       `巡檢人：${row.inspector || '—'}`,
       `狀態：${row.status || '—'}`,
-      row.dueDate ? `改善期限：${row.dueDate}` : '改善期限：未填',
+      dueText,
     ].join('　·　');
 
     el.records.appendChild(node);
