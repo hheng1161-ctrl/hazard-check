@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141210" media="(prefers-color-scheme: dark)">
+  <title>工地危害巡檢記錄</title>
+  <meta name="description" content="工地安衛人員的現場危害巡檢記錄工具：填寫即寫入 Google Sheets，並即時顯示缺失統計。">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23141210'/><text x='50' y='70' font-size='56' font-family='Georgia,serif' font-weight='700' text-anchor='middle' fill='%23c9a35e'>H</text></svg>">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <div class="brand">
+        <span class="brand-mark">H</span>
+        <span class="brand-text">
+          <strong>工地危害巡檢記錄</strong>
+          <small>HazardCheck · 作業二</small>
+        </span>
+      </div>
+      <span id="backend-status" class="status status--idle" role="status" aria-live="polite">
+        <span class="dot"></span><span class="status-text">檢查後端…</span>
+      </span>
+    </div>
+  </header>
+
+  <main class="wrap">
+
+    <!-- 統計 -->
+    <section class="card stats-card" aria-labelledby="stats-heading">
+      <h2 id="stats-heading" class="visually-hidden">統計</h2>
+      <dl class="stats">
+        <div class="stat">
+          <dt>總記錄</dt>
+          <dd id="stat-total">—</dd>
+        </div>
+        <div class="stat stat--warn">
+          <dt>待改善</dt>
+          <dd id="stat-open">—</dd>
+        </div>
+        <div class="stat stat--danger">
+          <dt>高嚴重度未改善</dt>
+          <dd id="stat-high">—</dd>
+        </div>
+      </dl>
+    </section>
+
+    <!-- 表單 -->
+    <section class="card" aria-labelledby="form-heading">
+      <p class="eyebrow">01 — 新增巡檢</p>
+      <h2 id="form-heading" class="section-title">填寫巡檢記錄</h2>
+
+      <form id="inspection-form" novalidate>
+        <div class="field">
+          <label for="f-site">工地／專案 <span class="req">*</span></label>
+          <input id="f-site" name="site" type="text" maxlength="50" autocomplete="off"
+                 list="site-list" placeholder="例：中龍鋼鐵二階建廠" required>
+          <datalist id="site-list"></datalist>
+          <p class="hint" data-error-for="site"></p>
+        </div>
+
+        <div class="field">
+          <label for="f-area">區域／樓層／位置 <span class="req">*</span></label>
+          <input id="f-area" name="area" type="text" maxlength="50" autocomplete="off"
+                 placeholder="例：B 棟 3F 東側" required>
+          <p class="hint" data-error-for="area"></p>
+        </div>
+
+        <div class="field">
+          <label for="f-item">檢查項目 <span class="req">*</span></label>
+          <select id="f-item" name="item" required>
+            <option value="">請選擇…</option>
+          </select>
+          <p class="hint" data-error-for="item"></p>
+        </div>
+
+        <fieldset class="field">
+          <legend>嚴重度 <span class="req">*</span></legend>
+          <div class="segmented" role="radiogroup" aria-label="嚴重度">
+            <label class="seg seg--high">
+              <input type="radio" name="severity" value="高" required>
+              <span>高</span>
+            </label>
+            <label class="seg seg--mid">
+              <input type="radio" name="severity" value="中">
+              <span>中</span>
+            </label>
+            <label class="seg seg--low">
+              <input type="radio" name="severity" value="低">
+              <span>低</span>
+            </label>
+          </div>
+          <p class="hint" data-error-for="severity"></p>
+        </fieldset>
+
+        <div class="field">
+          <label for="f-desc">缺失描述 <span class="req">*</span>
+            <span class="counter"><span id="desc-count">0</span>/500</span>
+          </label>
+          <textarea id="f-desc" name="desc" rows="4" maxlength="500" required
+                    placeholder="例：3F 電梯井開口未設護欄，僅有警示帶"></textarea>
+          <p class="hint" data-error-for="desc"></p>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="f-due">改善期限</label>
+            <input id="f-due" name="dueDate" type="date">
+            <p class="hint" data-error-for="dueDate"></p>
+          </div>
+          <div class="field">
+            <label for="f-inspector">巡檢人 <span class="req">*</span></label>
+            <input id="f-inspector" name="inspector" type="text" maxlength="30" autocomplete="off"
+                   placeholder="例：楊恒煦" required>
+            <p class="hint" data-error-for="inspector"></p>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="submit-btn" type="submit" class="btn btn--primary">送出記錄</button>
+          <button id="reset-btn" type="reset" class="btn btn--ghost">清除</button>
+        </div>
+
+        <p id="form-message" class="message" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <!-- 最近記錄 -->
+    <section class="card" aria-labelledby="list-heading">
+      <p class="eyebrow">02 — 最近記錄</p>
+      <div class="list-head">
+        <h2 id="list-heading" class="section-title">最近 20 筆</h2>
+        <button id="refresh-btn" type="button" class="btn btn--ghost btn--sm">重新整理</button>
+      </div>
+      <p id="list-empty" class="empty" hidden>還沒有任何記錄。填寫第一筆吧。</p>
+      <p id="list-error" class="message message--error" hidden></p>
+      <ul id="record-list" class="records"></ul>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <p>資料寫入 Google Sheets ｜ 本工具無身分驗證，僅供課程作業展示，請勿填入真實工地敏感資訊。</p>
+      <p class="footer-meta">全端網站開發實務 · 作業二 ｜ 楊恒煦</p>
+    </div>
+  </footer>
+
+  <template id="record-template">
+    <li class="record">
+      <div class="record-head">
+        <span class="record-sev"></span>
+        <span class="record-site"></span>
+        <time class="record-time"></time>
+      </div>
+      <p class="record-area"></p>
+      <p class="record-item"></p>
+      <p class="record-desc"></p>
+      <p class="record-foot"></p>
+    </li>
+  </template>
+
+  <script src="./app.js"></script>
+</body>
+</html>
